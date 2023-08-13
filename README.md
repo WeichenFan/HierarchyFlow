@@ -18,7 +18,7 @@
  -----------------
 
 ![](https://img.shields.io/badge/HierarchyFlow-v0.1-darkcyan)
-![](https://img.shields.io/github/stars/WeichenFan/HierarchyFlow?style=social)
+![](https://img.shields.io/github/stars/WeichenFan/HierarchyFlow)
 ![](https://black.readthedocs.io/en/stable/_static/license.svg)
 ![](https://img.shields.io/badge/code%20style-black-000000.svg)
 
