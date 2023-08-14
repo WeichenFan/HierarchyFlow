@@ -1,0 +1,47 @@
+common:
+    seed: 0
+    trainer: COCO2WikiTrainer
+    dataset: 
+        arch: get_COCO2Wiki_dataset
+        name: CommonDataset
+    model:
+        arch: hf_net_ori
+        kwargs:
+            channel_list: [3,30,120,480,1920]
+            n_block: 4
+
+    augmentation:
+      type: eval_aug
+      kwargs:
+        input_size_h: 300
+        input_size_w: 400
+
+    workers: 8
+    batch_size: 16
+
+    lr_scheduler:
+        type: COSINE
+        T_max: 200000
+        eta_min: 0.0000001
+        base_lr: 0.0001
+        max_iter: 200000
+        warmup_steps: 0
+        warmup_lr: 0.0001
+
+    optimizer:
+        type: Adam
+        kwargs:
+            weight_decay: 0.0005
+
+    criterion:
+        type: vgg_loss
+        kwargs:
+            k: 0.9
+            vgg_path: ../model/losses/vgg_model/vgg_normalised.pth
+        
+    save_freq: 100
+    print_freq: 100
+
+
+    source_root: /mnt/lustre/share_data/fanweichen2/Data/GTA_data/COCO/test.txt
+    target_root: /mnt/lustre/share_data/fanweichen2/Data/GTA_data/WikiArt/test.txt
