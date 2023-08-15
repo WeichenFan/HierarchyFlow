@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 
+
 def calc_mean_std(feat, eps=1e-5):
     size = feat.size()
     assert (len(size) == 4)
@@ -9,38 +10,6 @@ def calc_mean_std(feat, eps=1e-5):
     feat_std = feat_var.sqrt().view(N, C, 1, 1)
     feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
     return feat_mean, feat_std
-
-decoder = nn.Sequential(
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(512, 256, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='nearest'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 128, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='nearest'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(128, 128, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(128, 64, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='nearest'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(64, 64, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(64, 3, (3, 3)),
-)
 
 vgg = nn.Sequential(
     nn.Conv2d(3, 3, (1, 1)),
@@ -99,48 +68,26 @@ vgg = nn.Sequential(
 )
 
 
-def weighted_mse_loss(input, target, weight):
-    loss = (weight * (input - target) ** 2)
-    sort_loss,_ = torch.sort(loss,dim=1)
-    sort_loss[:,int(sort_loss.shape[1]*1.0):] = 0
-    #print('sort_loss: ',sort_loss.shape)
-    return sort_loss.mean()
-
-def weighted_mse_loss_merge(input_mean, target_mean, input_std, target_std, k):
+def weighted_mse_loss_merge(input_mean, target_mean, input_std, target_std, k=0.8):
     loss_mean = ((input_mean - target_mean) ** 2)
     sort_loss_mean,idx = torch.sort(loss_mean,dim=1)
-    #print('idx: ',idx.shape)
     sort_loss_mean[:,int(sort_loss_mean.shape[1]*k):] = 0
 
     loss_std = ((input_std - target_std) ** 2)
     loss_std[:,idx[:,int(idx.shape[1]*k):]] = 0
-    #loss_std[:,sort_loss_mean.shape[1]//2:] = 0
-    #print('sort_loss: ',sort_loss.shape)
     return sort_loss_mean.mean(),loss_std.mean()
     
-def gram_matrix(input):
-    a, b, c, d = input.size()  # a=batch size(=1)
-    # b=number of feature maps
-    # (c,d)=dimensions of a f. map (N=c*d)
-
-    features = input.view(a * b, c * d)  # resise F_XL into \hat F_XL
-
-    G = torch.mm(features, features.t())  # compute the gram product
-
-    # we 'normalize' the values of the gram matrix
-    # by dividing by the number of element in each feature maps.
-    return G.div(a * b * c * d)
-
-class Net(nn.Module):
-    def __init__(self, encoder, k):
-        super(Net, self).__init__()
+class VGGLoss(nn.Module):
+    def __init__(self, vgg_model):
+        super(VGGLoss, self).__init__()
+        encoder = vgg
+        encoder.load_state_dict(torch.load(vgg_model))
         enc_layers = list(encoder.children())
         self.enc_1 = nn.Sequential(*enc_layers[:4])  # input -> relu1_1
         self.enc_2 = nn.Sequential(*enc_layers[4:11])  # relu1_1 -> relu2_1
         self.enc_3 = nn.Sequential(*enc_layers[11:18])  # relu2_1 -> relu3_1
         self.enc_4 = nn.Sequential(*enc_layers[18:31])  # relu3_1 -> relu4_1
         self.mse_loss = nn.MSELoss()
-        self.k = k
 
         # fix the encoder
         for name in ['enc_1', 'enc_2', 'enc_3', 'enc_4']:
@@ -161,11 +108,6 @@ class Net(nn.Module):
             input = getattr(self, 'enc_{:d}'.format(i + 1))(input)
         return input
 
-    # def calc_content_loss(self, input, target):
-    #     assert (input.size() == target.size())
-    #     assert (target.requires_grad is False)
-    #     return self.mse_loss(input, target)
-    #     #return weighted_mse_loss(input, target, weight)
     def calc_content_loss(self, input, target):
         assert (input.size() == target.size())
         assert (target.requires_grad is False)
@@ -177,67 +119,24 @@ class Net(nn.Module):
         normalized_feat2 = (target - target_mean.expand(size2)) / target_std.expand(size2)
         return self.mse_loss(normalized_feat1, normalized_feat2)
 
-    def calc_style_loss(self, input, target):
+    def calc_style_loss(self, input, target, k=0.8):
         assert (input.size() == target.size())
         assert (target.requires_grad is False)
         input_mean, input_std = calc_mean_std(input)
         target_mean, target_std = calc_mean_std(target)
-        # return self.mse_loss(input_mean, target_mean) + \
-        #        self.mse_loss(input_std, target_std)
-        loss_mean,loss_std = weighted_mse_loss_merge(input_mean,target_mean,input_std,target_std,self.k)
-        return loss_mean+loss_std
+        if k < 0.0:
+            return self.mse_loss(input_mean, target_mean) + self.mse_loss(input_std, target_std)
+        else:
+            loss_mean, loss_std = weighted_mse_loss_merge(input_mean, target_mean, input_std, target_std, k)
+            return loss_mean+loss_std
 
-    def cat_tensor(self,img):
-        feat = self.encode_with_intermediate(img)
-        mean,std = calc_mean_std(feat[0])
-        mean = mean.squeeze(2)
-        mean = mean.squeeze(2)
-        std = std.squeeze(2)
-        std = std.squeeze(2)
-        t = torch.cat([mean,std],dim=1)
-        for i in range(1,len(feat)):
-            mean,std = calc_mean_std(feat[i])
-            mean = mean.squeeze(2)
-            mean = mean.squeeze(2)
-            std = std.squeeze(2)
-            std = std.squeeze(2)
-            t = torch.cat([t,mean,std],dim=1)
-        return t
-        
-    def cal_feat(self,img):
-        style_feats = self.encode_with_intermediate(img)
-        return style_feats
-
-    def cal_feat_gram(self,img):
-        style_feats = self.encode_with_intermediate(img)
-        gl = []
-        for i in range(4):
-            g = gram_matrix(style_feats[i])
-            g = g.view(1,g.shape[0]*g.shape[0])
-            gl.append(g)
-        gl_tensor = torch.cat(gl,dim=1)
-        return gl_tensor
-        
-    def forward(self, content_images, style_images, stylized_images):
+    def forward(self, content_images, style_images, stylized_images, k=0.8):
         style_feats = self.encode_with_intermediate(style_images)
         content_feat = self.encode(content_images)
         stylized_feats = self.encode_with_intermediate(stylized_images)
 
         loss_c = self.calc_content_loss(stylized_feats[-1], content_feat)
-        loss_s = self.calc_style_loss(stylized_feats[0], style_feats[0])
+        loss_s = self.calc_style_loss(stylized_feats[0], style_feats[0], k)
         for i in range(1, 4):
-            loss_s += self.calc_style_loss(stylized_feats[i], style_feats[i])
+            loss_s += self.calc_style_loss(stylized_feats[i], style_feats[i], k)
         return loss_c, loss_s
-
-
-class vgg_loss(torch.nn.Module):
-    def __init__(self,k,vgg_path='../model/losses/vgg_model/vgg_normalised.pth'):
-        super(vgg_loss, self).__init__()
-        #self.celoss = torch.nn.CrossEntropyLoss()
-        vgg.load_state_dict(torch.load(vgg_path))
-        self.encoder = Net(vgg,k)
-
-    def forward(self, content_images,style_images,stylized,weight_content=0.1,weight_style=1.0):
-        
-        loss_c, loss_s = self.encoder(content_images, style_images, stylized)
-        return weight_content*loss_c + weight_style*loss_s
