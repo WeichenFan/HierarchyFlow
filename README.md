@@ -81,5 +81,16 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nproc_per_node
 3. [ ] Add COCO2Wikiart exp.
 4. [ ] Add more exp.
 
+## Cite
+```bibtex
+@article{fan2023hierarchy,
+  title={Hierarchy Flow For High-Fidelity Image-to-Image Translation},
+  author={Fan, Weichen and Chen, Jinghuan and Liu, Ziwei},
+  journal={arXiv preprint arXiv:2308.06909},
+  year={2023}
+}
+```
+
+
 **Under construction...**
 
