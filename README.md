@@ -20,6 +20,7 @@
 ![](https://img.shields.io/badge/HierarchyFlow-v0.1-darkcyan)
 ![](https://img.shields.io/github/stars/WeichenFan/HierarchyFlow)
 ![](https://black.readthedocs.io/en/stable/_static/license.svg)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FWeichenFan%2FHierarchyFlow&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
 ![](https://img.shields.io/badge/code%20style-black-000000.svg)
 
 This repository contains the **official implementation** of the following paper:
