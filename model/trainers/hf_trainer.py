@@ -8,7 +8,7 @@ import torch.distributed as dist
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 
-from model.losses.vgg_loss import VGGLoss
+from model.losses import VGGLoss
 from model.network.hf import HierarchyFlow
 from model.utils.dataset import get_dataset
 from model.utils.sampler import DistributedGivenIterationSampler, DistributedTestSampler

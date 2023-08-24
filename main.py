@@ -15,7 +15,7 @@ parser.add_argument('--config', type=str, default='configs/config.yaml', help='c
 parser.add_argument('--eval_only', action='store_true', help='evaluation mode')
 parser.add_argument('--local_rank', type=int, default=-1, help='node rank for distributed training')
 parser.add_argument('--seed', type=int, default=0, help='seed for initializing training')
-
+parser.add_argument('--load_path', type=str, help='path for ckpt')
 
 def set_random_seed(seed):
     r"""Set random seeds for everything.
@@ -40,7 +40,11 @@ def main():
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     cfg = EasyDict(cfg)
     cfg.eval_mode = args.eval_only
-
+    if 'k' in args:
+        cfg.loss.k = args.k
+    if 'load_path' in args:
+        cfg.load_path = args.load_path
+        
     if args.local_rank == 0:
         print(cfg)
         if not os.path.exists(cfg.output):

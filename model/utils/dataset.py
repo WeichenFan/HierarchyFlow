@@ -2,6 +2,7 @@ from PIL import Image
 import torch.utils.data as data
 from torchvision import transforms
 import random
+import os
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -20,22 +21,29 @@ def pil_img_loader(path):
 class BaseDataset(data.Dataset):
     def __init__(self, cfg):
         src_list = cfg.source_list
+        src_root = cfg.source_root
         tgt_list = cfg.target_list
+        tgt_root = cfg.target_root
         self.src_list = []
         self.tgt_list = []
         with open(src_list, 'r') as f:
             for line in f.readlines():
-                self.src_list.append(line.strip())
+                self.src_list.append(os.path.join(src_root,line.strip()))
         with open(tgt_list, 'r') as f:
             for line in f.readlines():
-                self.tgt_list.append(line.strip())
+                self.tgt_list.append(os.path.join(tgt_root,line.strip()))
         self.src_len = len(self.src_list)
         self.tgt_len = len(self.tgt_list)
 
         transform_options = cfg.transform
         height, width = cfg.height, cfg.width
+        scale_lower,scale_higher = cfg.scale_l, cfg.scale_h
         transform_list = []
-        transform_list.append(transforms.Resize((height, width)))
+        
+        if 'random_resized_crop' in transform_options:
+            transform_list.append(transforms.RandomResizedCrop((height, width), scale=(scale_lower, scale_higher), ratio=(0.75, 1.3333333333333333)))
+        else:
+            transform_list.append(transforms.Resize((height, width)))
         if 'crop' in transform_options:
             transform_list.append(transforms.RandomCrop(height))
         if 'h_flip' in transform_options:

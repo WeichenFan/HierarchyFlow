@@ -1,0 +1,9 @@
+tqdm
+PyYAML
+easydict
+numpy
+opencv-python
+tensorboard
+tensorboard-data-server
+tensorboard-plugin-wit
+tensorboardX
